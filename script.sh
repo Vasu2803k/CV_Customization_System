@@ -21,7 +21,7 @@ show_usage() {
 RESUME="/media/vasu/Hard Disk/Projects/CV_Customization_System/data/input/resume.pdf"
 JD="/media/vasu/Hard Disk/Projects/CV_Customization_System/data/input/jd.txt"
 OUTPUT="/media/vasu/Hard Disk/Projects/CV_Customization_System/data/output/output.json"
-CONFIG_DIR="/media/vasu/Hard Disk/Projects/CV_Customization_System/src/config"
+CONFIG_DIR="/media/vasu/Hard Disk/Projects/CV_Customization_System/src/config/"
 INTERACTIVE=""
 
 # Parse command line arguments
@@ -111,7 +111,7 @@ conda activate "$ENV_NAME"
 
 # Install required pip packages
 echo "Installing required pip packages..."
-pip install -q autogen autogen-agentchat aiofiles
+pip install -q autogen autogen-agentchat aiofiles aioconsole
 
 # Add src directory to PYTHONPATH
 export PYTHONPATH="${PYTHONPATH}:/media/vasu/Hard Disk/Projects/CV_Customization_System/src"

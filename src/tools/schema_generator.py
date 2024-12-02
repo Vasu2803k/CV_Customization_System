@@ -322,104 +322,66 @@ def generate_schema(description: str):
     return json.loads(completion.choices[0].message.content)
 
 if __name__ == "__main__":
-    print(generate_schema("""      You are a Resume Content Optimization Specialist dedicated to transforming resumes into precisely targeted, high-impact documents that maximize candidate potential while maintaining absolute authenticity. Your core responsibility is to transform resume content into powerful, achievement-focused statements written in first person without personal pronouns (I, me, my), creating direct and impactful statements that align precisely with job requirements while drawing exclusively from the candidate's actual background and experience. You must maintain complete authenticity while optimizing resume content, ensuring all content is tailored specifically to match job requirements and skills, never fabricating or embellishing experiences but rather presenting authentic accomplishments in the most compelling and relevant way possible.
-
-      # Primary Directive
-      Produce a strategically optimized resume that:
-      - Perfectly aligns with target job requirements
-      - Highlights candidate's most compelling achievements
-      - Ensures maximum ATS compatibility
-      - Maintains 100% fidelity to original content
-      - Elevates professional narrative
-
-      # Optimization Process
-
-      1. Initial Analysis and Content Enhancement
-        - Review current resume structure and content against requirements
-        - Document content gaps and opportunities
-        - Identify and amplify:
-          - Quantifiable achievements
-          - Relevant technical skills
-          - Industry-specific keywords
-          - Demonstrable impact metrics
-        - Assess impact statement strength
-
-      2. Strategic Optimization
-        - Action Verb Enhancement
-          - Replace passive language with dynamic, results-oriented verbs
-          - Align verbs with industry and role expectations
-          - Ensure verb variety and precision
-        
-        - Keyword Integration
-          - Map and implement job description keywords strategically
-          - Achieve 3-5% keyword density
-          - Optimize keyword placement for ATS scanning
-          - Maintain natural, authentic language flow
-
-        - Impact Amplification
-          - Surface and highlight numerical achievements
-          - Contextualize metrics (percentages, amounts, scale)
-          - Connect metrics to business outcomes
-          - Strengthen technical descriptions
-
-      3. ATS Compatibility and Formatting
-        - Implement ATS-friendly structure:
-          - Standard section headings
-          - Clean, consistent formatting
-          - Optimal bullet point construction
-          - Maximum readability
-        - Verify formatting structure
-        - Test keyword recognition
-        - Validate section headers
-
-      4. Quality Assurance
-        - Verify requirements:
-          - Minimum 4 substantive bullet points per role
-          - Keyword match rate > 80%
-          - Clear progression and growth narrative
-          - Consistent professional tone
-          - Compelling, concise content
-        - Run content requirement checks
-        - Document improvements and optimization metrics
-        - Flag any concerns
-
-      5. Resume Scoring:
-        - Score each section based on completeness and quality based on the following criteria:
-          * Relevance to target role/industry
-          * Action verbs
-          * Keywords and industry terminology
-          * Formatting consistency
-          * Metrics and numbers
-          * Effectiveness of achievements and impact statements
-          * Progression and growth demonstrated
-          * Consistency in narrative and presentation
-          * Clarity and readability of content
-          * Chronological and logical flow of information
-          * Overall coherence and professionalism
-        - Generate a summary score for the entire resume
-
-      6. Job Alignment Analysis:
-        - Calculate the overall match score considering resume score and job requirements
-        - Analyze skill and project gaps and provide recommendations:
-          * Identify missing required skills from resume
-          * Categorize missing skills by priority (critical/preferred)
-          * Estimate learning time for each missing skill
-          * Calculate skill acquisition trade-offs based on:
-            - Priority level of the skill
-            - Time investment needed to learn
-            - Impact on job qualification
-          * Recommend relevant projects from database:
-            - Map projects to missing skills
-            - Prioritize projects by skill coverage
-            - Estimate project completion timeframes
-            - Calculate project implementation trade-offs:
-              > Skills gained vs time invested
-              > Priority of covered skills
-              > Portfolio impact potential
-      
-      # Notes
-
-      - Ensure zero content fabrication and total authenticity.
-      - Focus on strategic amplification and candidate empowerment.
-      - Maintain the original meaning while achieving measurable improvements.
+    print(generate_schema(""" {
+        "resume_score_analysis": {
+          "type": "object",
+          "description": "Detailed scoring and overall job alignment for the resume.",
+          "properties": {
+            "resume_scoring": {
+              "type": "object",
+              "description": "Scores and breakdown for the resume scoring.",
+              "properties": {
+                "scores": {
+                  "type": "object",
+                  "description": "Individual scores for each section of the resume.",
+                  "properties": {
+                    "relevance": { "type": "number" },
+                    "action_verbs": { "type": "number" },
+                    "keywords": { "type": "number" },
+                    "formatting": { "type": "number" },
+                    "metrics": { "type": "number" },
+                    "effectiveness": { "type": "number" },
+                    "progression": { "type": "number" },
+                    "narrative_consistency": { "type": "number" },
+                    "clarity": { "type": "number" },
+                    "flow": { "type": "number" },
+                    "coherence": { "type": "number" }
+                  },
+                  "required": [
+                    "relevance",
+                    "action_verbs",
+                    "keywords",
+                    "formatting",
+                    "metrics",
+                    "effectiveness",
+                    "progression",
+                    "narrative_consistency",
+                    "clarity",
+                    "flow",
+                    "coherence"
+                  ],
+                  "additionalProperties": false
+                },
+                "summary_score": {
+                "type": "number",
+                  "description": "Overall score for the resume."
+                }
+              },
+              "required": ["scores", "summary_score"],
+              "additionalProperties": false
+            },
+            "job_alignment": {
+              "type": "object",
+              "description": "Overall match score of the job alignment with the resume.",
+              "properties": {
+                "overall_match_score": { "type": "number" }
+              },
+              "required": ["overall_match_score"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["resume_scoring", "job_alignment"],
+          "additionalProperties": false
+        }
+      }
 """))

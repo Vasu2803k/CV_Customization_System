@@ -75,7 +75,6 @@ agents:
 
     output_format: "json"
     output_schema: | 
-      Your output must be in JSON format with the following structure:
       {
         "name": "resume_analysis",
         "type": "object",
@@ -384,46 +383,9 @@ agents:
                 "required": ["missing_skills"],
                 "additionalProperties": false
               },
-              "project_recommendations": {
-                "type": "array",
-                "description": "Recommended projects for skill improvement.",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "project_title": { "type": "string" },
-                    "estimated_time": { "type": "string" },
-                    "skill_coverages": {
-                      "type": "array",
-                      "items": { "type": "string" }
-                    },
-                    "implementation_tradeoffs": {
-                      "type": "object",
-                      "properties": {
-                        "skills_gained": { "type": "string" },
-                        "time_invested": { "type": "string" },
-                        "covered_skills_priority": { "type": "string" }
-                      },
-                      "required": [
-                        "skills_gained",
-                        "time_invested",
-                        "covered_skills_priority"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "project_title",
-                    "estimated_time",
-                    "skill_coverages",
-                    "implementation_tradeoffs"
-                  ],
-                  "additionalProperties": false
-                }
-              }
             },
             "required": [
-              "skill_gaps",
-              "project_recommendations"
+              "skill_gaps"
             ],
             "additionalProperties": false
           }
@@ -436,12 +398,104 @@ agents:
         "additionalProperties": false
       }
 
+  project_recommender:
+    role: "Project Recommendation Specialist"
+    goal: "Recommend projects for skill improvement"
+    system_prompt: |
+      You are a Project Recommendation Specialist tasked with recommending projects for skill improvement based on job requirements and missing skills. Consider time constraints and priority of required skills for each candidate.
+
+      # Steps
+
+      - Access the list of projects aligned to the missing skills.
+      - Ensure projects prioritize the most critical skills and align with the job requirements.
+      - Prioritize projects that provide comprehensive skill development and strengthen current capabilities.
+      - Recommend projects that are realistic and feasible considering the tradeoff between the time and priority of the skills. 
+
+      # Notes
+
+      - Validate the recommended projects align to the job requirements.
+      - Focus on projects that maximize coverage of necessary skills and enhance existing competencies.
+    output_format: "json"
+    output_schema: |
+      {
+        "name": "project_recommendation",
+        "type": "object",
+        "properties": {
+          "project_recommendations": {
+            "type": "array",
+            "description": "Recommended projects for skill improvement.",
+            "items": {
+              "type": "object", 
+              "properties": {
+                "project_title": { "type": "string" },
+                "highlights": {
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "Highlights of the project in bullet points"
+                    },
+                    {
+                      "type": "string",
+                      "description": "Highlights of the project as a single paragraph"
+                    }
+                  ],
+                  "description": "Highlights of the project"
+                },
+                "estimated_time": { "type": "string" },
+                "skill_coverages": {
+                  "type": "object",
+                  "properties": {
+                    "skills": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "Core skills covered by the project"
+                    },
+                    "technologies": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "Specific technologies and tools used"
+                    }
+                  },
+                  "required": ["skills", "technologies"],
+                  "additionalProperties": false
+                },
+                "implementation_tradeoffs": {
+                  "type": "object",
+                  "properties": {
+                    "skills_gained": { "type": "string" },
+                    "time_invested": { "type": "string" },
+                    "covered_skills_priority": { "type": "string" }
+                  },
+                  "required": [
+                    "skills_gained",
+                    "time_invested", 
+                    "covered_skills_priority"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "project_title",
+                "estimated_time",
+                "skill_coverages",
+                "implementation_tradeoffs",
+                "highlights"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["project_recommendations"],
+        "additionalProperties": false
+      }
+
   resume_optimizer:
     role: "Resume Content Optimization Specialist"
     goal: "Enhance resume content while maintaining authenticity and ATS compatibility"
     system_prompt: |
-      You are a Resume Content Optimization Specialist dedicated to transforming resumes into precisely targeted, high-impact documents that maximize candidate potential while maintaining absolute authenticity. Your core responsibility is to transform resume content into powerful, achievement-focused statements written in first person without personal pronouns (I, me, my), creating direct and impactful statements that align precisely with job requirements while drawing exclusively from the candidate's actual background and experience. You must maintain complete authenticity while optimizing resume content, ensuring all content is tailored specifically to match job requirements and skills, never fabricating or embellishing experiences but rather presenting authentic accomplishments in the most compelling and relevant way possible.
-
+      You are a Resume Content Optimization Specialist focused on transforming resumes into targeted, high-impact documents. Your role is to create powerful, achievement-focused statements in first person without pronouns (I, me, my) that align with job requirements while staying true to the candidate's actual background. You must maintain authenticity - never fabricate information, but rather present real accomplishments in the most compelling and relevant way possible. 
+      
       # Primary Directive
       Produce a strategically optimized resume that:
       - Perfectly aligns with target job requirements
@@ -454,11 +508,10 @@ agents:
 
       1. Initial Analysis and Content Enhancement
         - Review current resume structure and content against requirements
-        - Document content gaps and opportunities
         - Identify and amplify:
-          - Quantifiable achievements
           - Relevant technical skills
           - Industry-specific keywords
+          - Quantifiable achievements
           - Demonstrable impact metrics
         - Assess impact statement strength
 
@@ -480,7 +533,12 @@ agents:
           - Connect metrics to business outcomes
           - Strengthen technical descriptions
 
-      3. ATS Compatibility and Formatting
+      3. Summary Optimization
+        - Create a summary that is achievement-focused and aligns with job requirements
+        - Ensure summary is of 4-5 sentences paragraph in length
+        - Ensure summary flows naturally from optimized content
+
+      4. ATS Compatibility and Formatting
         - Implement ATS-friendly structure:
           - Standard section headings
           - Clean, consistent formatting
@@ -490,60 +548,23 @@ agents:
         - Test keyword recognition
         - Validate section headers
 
-      4. Quality Assurance
+      5. Quality Assurance
         - Verify requirements:
-          - Minimum 4 substantive bullet points per role
+          - Minimum 4 substantive bullet points or sentences for adequate content per role in work experience or project section
           - Keyword match rate > 80%
-          - Clear progression and growth narrative
           - Consistent professional tone
-          - Compelling, concise content
         - Run content requirement checks
-        - Document improvements and optimization metrics
-        - Flag any concerns
-
-      5. Resume Scoring:
-        - Score each section based on completeness and quality based on the following criteria:
-          * Relevance to target role/industry
-          * Action verbs
-          * Keywords and industry terminology
-          * Formatting consistency
-          * Metrics and numbers
-          * Effectiveness of achievements and impact statements
-          * Progression and growth demonstrated
-          * Consistency in narrative and presentation
-          * Clarity and readability of content
-          * Chronological and logical flow of information
-          * Overall coherence and professionalism
-        - Generate a summary score for the entire resume
-
-      6. Job Alignment Analysis:
-        - Calculate the overall match score considering resume score and job requirements
-        - Analyze skill and project gaps and provide recommendations:
-          * Identify missing required skills from resume
-          * Categorize missing skills by priority (critical/preferred)
-          * Estimate learning time for each missing skill
-          * Calculate skill acquisition trade-offs based on:
-            - Priority level of the skill
-            - Time investment needed to learn
-            - Impact on job qualification
-          * Recommend relevant projects from database:
-            - Map projects to missing skills
-            - Prioritize projects by skill coverage
-            - Estimate project completion timeframes
-            - Calculate project implementation trade-offs:
-              > Skills gained vs time invested
-              > Priority of covered skills
-              > Portfolio impact potential
       
       # Notes
-
+      - Already existing content should be enhanced and not removed. New bonus content should be added considering the overall narrative when requested while maintaining authenticity.
       - Ensure zero content fabrication and total authenticity.
       - Focus on strategic amplification and candidate empowerment.
       - Maintain the original meaning while achieving measurable improvements.
+      - Ensure new content aligns with candidate's background and experience.
+      - Validate that new content supports overall narrative.
 
     output_format: "json"
     output_schema: | 
-      Your output must be in JSON format with the following structure: 
       {
         "name": "resume_optimization",
         "type": "object",
@@ -716,86 +737,9 @@ agents:
               "unclear_content"
             ],
             "additionalProperties": false
-          },
-          "resume_scoring": {
-            "type": "object",
-            "description": "Scores and breakdown for the resume optimization.",
-            "properties": {
-              "scores": {
-                "type": "object",
-                "description": "Individual scores for each section of the optimized resume.",
-                "properties": {
-                  "relevance": { "type": "number" },
-                  "action_verbs": { "type": "number" },
-                  "keywords": { "type": "number" },
-                  "formatting": { "type": "number" },
-                  "metrics": { "type": "number" },
-                  "effectiveness": { "type": "number" },
-                  "progression": { "type": "number" },
-                  "narrative_consistency": { "type": "number" },
-                  "clarity": { "type": "number" },
-                  "flow": { "type": "number" },
-                  "coherence": { "type": "number" }
-                },
-                "required": [
-                  "relevance",
-                  "action_verbs",
-                  "keywords",
-                  "formatting",
-                  "metrics",
-                  "effectiveness",
-                  "progression",
-                  "narrative_consistency",
-                  "clarity",
-                  "flow",
-                  "coherence"
-                ],
-                "additionalProperties": false
-              },
-              "summary_score": {
-                "type": "number",
-                "description": "Overall score for the optimized resume."
-              }
-            },
-            "required": ["scores", "summary_score"],
-            "additionalProperties": false
-          },
-          "job_alignment": {
-            "type": "object",
-            "description": "Overall analysis of the job alignment with the optimized resume.",
-            "properties": {
-              "overall_match_score": {
-                "type": "number",
-                "description": "Calculated match score between optimized resume and job requirements."
-              },
-              "skill_gaps": {
-                "type": "object",
-                "description": "Identified gaps in required skills.",
-                "properties": {
-                  "missing_skills": {
-                    "type": "array",
-                    "description": "List of missing required skills from the optimized resume.",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "skill": { "type": "string" },
-                        "priority": { "type": "string" },
-                        "learning_time": { "type": "string" }
-                      },
-                      "required": ["skill", "priority", "learning_time"],
-                      "additionalProperties": false
-                    }
-                  }
-                },
-                "required": ["missing_skills"],
-                "additionalProperties": false
-              }
-            },
-            "required": ["overall_match_score", "skill_gaps"],
-            "additionalProperties": false
           }
         },
-        "required": ["resume_components", "resume_scoring", "job_alignment"],
+        "required": ["resume_components"],
         "additionalProperties": false
       }
 
@@ -825,6 +769,7 @@ agents:
           * Content hierarchy
           * Spacing implementation
           * Visual element placement
+        - Format sections according to template requirements (e.g., paragraphs, bullet points)
         - Apply formatting rules
         - Add visual elements
 
@@ -858,6 +803,7 @@ agents:
       # Notes
 
       - Strictly follow template guidelines
+      - Format sections according to template requirements (e.g., paragraphs, bullet points)
       - Use only clean, professional layouts with proper spacing and margins
       - Follow LaTeX best practices and use modern packages
       - Create maintainable, well-structured code
@@ -871,80 +817,15 @@ agents:
       Generate a single LaTeX document with the given template.
     output_format: "latex"
 
-  user_proxy:
-    role: "Resume Workflow Coordinator"
-    goal: "Coordinate resume optimization process and manage user interactions"
-    system_prompt: |
-      You are a Resume Workflow Coordinator responsible for managing the resume optimization process and user interactions effectively. Your role is to ensure seamless coordination between different agents and deliver comprehensive recommendations for resume improvement.
-
-      # Steps
-
-      1. Process Initialization:
-        - Collect detailed user requirements and goals
-        - Set up optimized workflow sequence
-        - Initialize comprehensive tracking systems
-        - Brief and coordinate relevant agents
-        - Establish success metrics and KPIs
-
-      2. Workflow Coordination:
-        - Monitor and optimize agent activities
-        - Manage task transitions and dependencies
-        - Track progress metrics and milestones
-        - Handle inter-agent dependencies
-        - Identify and resolve bottlenecks
-        - Ensure data consistency across agents
-
-      3. User Communication:
-        - Present detailed interim results
-        - Gather and analyze user feedback
-        - Implement strategic revisions
-        - Document key decisions and rationale
-        - Provide progress updates and timelines
-        - Address user concerns proactively
-
-      4. Quality Assurance:
-        - Review agent outputs thoroughly
-        - Validate improvements against requirements
-        - Check cross-sectional consistency
-        - Generate comprehensive quality report
-        - Ensure alignment with job requirements
-        - Verify optimization effectiveness
-
-      5. Final Output:
-        - Provide detailed resume recommendations:
-          * Content optimization suggestions
-          * Structure and formatting improvements
-          * Keyword optimization recommendations
-          * Skills gap analysis
-          * Project recommendations
-          * Learning path suggestions
-          * Industry alignment recommendations
-          * ATS optimization guidelines
-          * Visual presentation improvements
-          * Section-specific enhancements
-        - Deliver comprehensive improvement strategy:
-          * Short-term quick wins
-          * Medium-term enhancements
-          * Long-term career development
-          * Skill acquisition plan
-          * Industry positioning strategy
-
-      # Notes
-
-      - Maintain clear, consistent communication channels
-      - Handle errors proactively and systematically
-      - Ensure complete process transparency
-      - Keep user informed with regular status updates
-
-  resume_evaluator:
-    role: "Resume Evaluator Specialist"
+  resume_scorer:
+    role: "Resume Scoring Specialist"
     goal: "Evaluate resume scores and provide detailed scoring and overall job alignment"
     system_prompt: |
-      You are an expert resume evaluator providing detailed scoring and overall job alignment. Your task is to:
+      You are an expert resume scoring specialist providing detailed scoring and overall job alignment. 
       
       # Steps
       1. Resume Scoring:
-        - Score each section based on completeness and quality based on the following criteria:
+        - Score each section on a scale of 0-100 based on completeness and quality based on the following criteria:
           * Relevance to target role/industry
           * Action verbs
           * Keywords and industry terminology
@@ -958,73 +839,96 @@ agents:
           * Overall coherence and professionalism
         - Generate a summary score for the entire resume
       2. Job Alignment Analysis:
-        - Calculate the overall match score considering resume score and job requirements
+        - Calculate the overall match score on a scale of 0-100 considering resume score and job requirements
   
     output_format: "json"
     output_schema: |  
-      Your output must be in JSON format with the following structure:
       {
-        "resume_evaluation": {
-          "type": "object",
-          "description": "Detailed scoring and overall job alignment for the resume.",
-          "properties": {
-            "resume_scoring": {
-              "type": "object",
-              "description": "Scores and breakdown for the resume analysis.",
-              "properties": {
-                "scores": {
-                  "type": "object",
-                  "description": "Individual scores for each section of the resume.",
-                  "properties": {
-                    "relevance": { "type": "number" },
-                    "action_verbs": { "type": "number" },
-                    "keywords": { "type": "number" },
-                    "formatting": { "type": "number" },
-                    "metrics": { "type": "number" },
-                    "effectiveness": { "type": "number" },
-                    "progression": { "type": "number" },
-                    "narrative_consistency": { "type": "number" },
-                    "clarity": { "type": "number" },
-                    "flow": { "type": "number" },
-                    "coherence": { "type": "number" }
-                  },
-                  "required": [
-                    "relevance",
-                    "action_verbs",
-                    "keywords",
-                    "formatting",
-                    "metrics",
-                    "effectiveness",
-                    "progression",
-                    "narrative_consistency",
-                    "clarity",
-                    "flow",
-                    "coherence"
-                  ],
-                  "additionalProperties": false
+        "name": "resume_score_analysis",
+        "type": "object",
+        "properties": {
+          "resume_scoring": {
+            "type": "object",
+            "description": "Scores and breakdown for the resume scoring.",
+            "properties": {
+              "scores": {
+                "type": "object",
+                "description": "Individual scores for each section of the resume.",
+                "properties": {
+                  "relevance": { "type": "number" },
+                  "action_verbs": { "type": "number" },
+                  "keywords": { "type": "number" },
+                  "formatting": { "type": "number" },
+                  "metrics": { "type": "number" },
+                  "effectiveness": { "type": "number" },
+                  "progression": { "type": "number" },
+                  "narrative_consistency": { "type": "number" },
+                  "clarity": { "type": "number" },
+                  "flow": { "type": "number" },
+                  "coherence": { "type": "number" }
                 },
-                "summary_score": {
+                "required": [
+                  "relevance",
+                  "action_verbs",
+                  "keywords",
+                  "formatting",
+                  "metrics",
+                  "effectiveness",
+                  "progression",
+                  "narrative_consistency",
+                  "clarity",
+                  "flow",
+                  "coherence"
+                ],
+                "additionalProperties": false
+              },
+              "summary_score": {
                 "type": "number",
-                  "description": "Overall score for the resume."
-                }
-              },
-              "required": ["scores", "summary_score"],
-              "additionalProperties": false
+                "description": "Overall score for the resume."
+              }
             },
-            "job_alignment": {
-              "type": "object",
-              "description": "Overall match score of the job alignment with the resume.",
-              "properties": {
-                "overall_match_score": { "type": "number" }
-              },
-              "required": ["overall_match_score"],
-              "additionalProperties": false
-            }
+            "required": ["scores", "summary_score"],
+            "additionalProperties": false
           },
-          "required": ["resume_scoring", "job_alignment"],
-          "additionalProperties": false
-        }
+          "job_alignment": {
+            "type": "object",
+            "description": "Overall match score of the job alignment with the resume.",
+            "properties": {
+              "overall_match_score": { "type": "number" }
+            },
+            "required": ["overall_match_score"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["resume_score_analysis", "job_alignment"],
+        "additionalProperties": false
       }
+
+  content_evaluator:
+    role: "Resume Content Evaluator Specialist"
+    goal: "Evaluate resume content and provide recommendations for improvement"
+    system_prompt: |
+      You are an expert resume content evaluator specializing in resume content evaluation.
+
+      # Steps
+      1. Content Analysis:
+        - Evaluate resume content quality and identify improvements
+        - Highlight strengths and weaknesses
+        - Provide actionable section-specific feedback
+
+      2. Content Enhancement:
+        - Recommend optimizations to improve scoring
+        - Enhance narrative flow and clarity
+        - Refine content presentation
+
+      3. Optimization Recommendations:
+        - Generate optimization suggestions
+        - Provide targeted feedback for each section
+        - Suggest improvements in narrative flow and clarity
+        - Refine content presentation
+
+    output_format: "markdown"
+
   latex_evaluator:
     role: "LaTeX Evaluator Specialist"
     goal: "Evaluate LaTeX formatting and ensure ATS compatibility"
@@ -1088,37 +992,28 @@ agents:
       - Focus on maintaining balance between visual appeal and ATS compatibility
       - Ensure all recommendations follow LaTeX best practices
       - Prioritize solutions that maximize parsing accuracy
+    output_format: "markdown"
 
 # LLM configurations
 llm_config:
   openai_config:
     model: "gpt-4o"
-    temperature: 0.3
+    temperature: 0.2
     top_p: 0.9
-    presence_penalty: 0.1
-    frequency_penalty: 0.1
-    max_tokens: 4000
-    timeout: 120
+    presence_penalty: 0.0
+    frequency_penalty: 0.0
+    max_tokens: 8000
+    timeout: 180
     cache_seed: None
-    
-
-  claude_config:
-    model: "claude-3-sonnet-20240229"
-    temperature: 0.3
-    top_p: 0.9
-    presence_penalty: 0.1 
-    frequency_penalty: 0.1
-    max_tokens: 4000
-    timeout: 120
-    cache_seed: None
-
+  
   fallback_config:
     model: "gpt-4o-mini"
-    temperature: 0.3
+    temperature: 0.2
     top_p: 0.9
-    presence_penalty: 0.1
-    frequency_penalty: 0.1
-    max_tokens: 4000
-    timeout: 60
+    presence_penalty: 0.0
+    frequency_penalty: 0.0
+    max_tokens: 8000
+    timeout: 180
     cache_seed: None
+
     
