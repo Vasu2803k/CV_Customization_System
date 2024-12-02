@@ -28,22 +28,7 @@ agents:
         - Preserve exact wording and formatting
         - Flag any content that doesn't clearly belong to a section and pin it to unclear_content (with a note on why it's unclear)
 
-      2. Resume Scoring:
-        - Score each section based on completeness and quality based on the following criteria:
-          * Relevance to target role/industry
-          * Action verbs
-          * Keywords and industry terminology
-          * Formatting consistency
-          * Metrics and numbers
-          * Effectiveness of achievements and impact statements
-          * Progression and growth demonstrated
-          * Consistency in narrative and presentation
-          * Clarity and readability of content
-          * Chronological and logical flow of information
-          * Overall coherence and professionalism
-        - Generate a summary score for the entire resume
-
-      3. Job Requirements Analysis:
+      2. Job Requirements Analysis:
         - Extract and categorize job requirements:
           * Explicit requirements (directly stated)
           * Implicit requirements (implied or contextual)
@@ -64,8 +49,7 @@ agents:
           * Key responsibilities and deliverables
           * Growth and advancement opportunities
 
-      4. Job Alignment Analysis:
-        - Calculate the overall match score considering resume score and job requirements
+      3. Job Alignment Analysis:
         - Analyze skill and project gaps and provide recommendations:
           * Identify missing required skills from resume
           * Categorize missing skills by priority (critical/preferred)
@@ -89,8 +73,9 @@ agents:
       - Follow the steps in order as specified.
       - Follow the output schema strictly with minimal deviations wherever necessary incase of additional information and ambiguities.
 
-    output_format: json
+    output_format: "json"
     output_schema: | 
+      Your output must be in JSON format with the following structure:
       {
         "name": "resume_analysis",
         "type": "object",
@@ -264,49 +249,6 @@ agents:
             ],
             "additionalProperties": false
           },
-          "resume_scoring": {
-            "type": "object",
-            "description": "Scores and breakdown for the resume analysis.",
-            "properties": {
-              "scores": {
-                "type": "object",
-                "description": "Individual scores for each section of the resume.",
-                "properties": {
-                  "relevance": { "type": "number" },
-                  "action_verbs": { "type": "number" },
-                  "keywords": { "type": "number" },
-                  "formatting": { "type": "number" },
-                  "metrics": { "type": "number" },
-                  "effectiveness": { "type": "number" },
-                  "progression": { "type": "number" },
-                  "narrative_consistency": { "type": "number" },
-                  "clarity": { "type": "number" },
-                  "flow": { "type": "number" },
-                  "coherence": { "type": "number" }
-                },
-                "required": [
-                  "relevance",
-                  "action_verbs",
-                  "keywords",
-                  "formatting",
-                  "metrics",
-                  "effectiveness",
-                  "progression",
-                  "narrative_consistency",
-                  "clarity",
-                  "flow",
-                  "coherence"
-                ],
-                "additionalProperties": false
-              },
-              "summary_score": {
-                "type": "number",
-                "description": "Overall score for the resume."
-              }
-            },
-            "required": ["scores", "summary_score"],
-            "additionalProperties": false
-          },
           "job_requirements": {
             "type": "object",
             "description": "Extracted job requirements for analysis.",
@@ -420,10 +362,6 @@ agents:
             "type": "object",
             "description": "Overall analysis of the job alignment with the resume.",
             "properties": {
-              "overall_match_score": {
-                "type": "number",
-                "description": "Calculated match score between resume and job requirements."
-              },
               "skill_gaps": {
                 "type": "object",
                 "description": "Identified gaps in required skills.",
@@ -484,7 +422,6 @@ agents:
               }
             },
             "required": [
-              "overall_match_score",
               "skill_gaps",
               "project_recommendations"
             ],
@@ -493,7 +430,6 @@ agents:
         },
         "required": [
           "resume_components",
-          "resume_scoring",
           "job_requirements",
           "job_alignment"
         ],
@@ -605,8 +541,9 @@ agents:
       - Focus on strategic amplification and candidate empowerment.
       - Maintain the original meaning while achieving measurable improvements.
 
-    output_format: json
-    output_schema: |  
+    output_format: "json"
+    output_schema: | 
+      Your output must be in JSON format with the following structure: 
       {
         "name": "resume_optimization",
         "type": "object",
@@ -932,88 +869,226 @@ agents:
       - In cases where sections specified in the expected output format are absent from the provided resume content and the resume is partial or incomplete, strategically select and incorporate relevant alternative sections while avoiding duplication. The section selection should align with the position requirements and job description. For technical roles, prioritize sections highlighting technical expertise and professional achievements over non-essential sections such as languages spoken unless it is role specific.
 
       Generate a single LaTeX document with the given template.
-    output_format: latex
+    output_format: "latex"
 
   user_proxy:
     role: "Resume Workflow Coordinator"
     goal: "Coordinate resume optimization process and manage user interactions"
     system_prompt: |
-      You are a Resume Workflow Coordinator responsible for managing the resume optimization process and user interactions effectively.
+      You are a Resume Workflow Coordinator responsible for managing the resume optimization process and user interactions effectively. Your role is to ensure seamless coordination between different agents and deliver comprehensive recommendations for resume improvement.
 
       # Steps
 
       1. Process Initialization:
-        - Collect user requirements.
-        - Set up workflow sequence.
-        - Initialize tracking systems.
-        - Brief relevant agents.
+        - Collect detailed user requirements and goals
+        - Set up optimized workflow sequence
+        - Initialize comprehensive tracking systems
+        - Brief and coordinate relevant agents
+        - Establish success metrics and KPIs
 
       2. Workflow Coordination:
-        - Monitor agent activities.
-        - Manage task transitions.
-        - Track progress metrics.
-        - Handle dependencies.
+        - Monitor and optimize agent activities
+        - Manage task transitions and dependencies
+        - Track progress metrics and milestones
+        - Handle inter-agent dependencies
+        - Identify and resolve bottlenecks
+        - Ensure data consistency across agents
 
       3. User Communication:
-        - Present interim results.
-        - Gather user feedback.
-        - Implement revisions.
-        - Document decisions.
+        - Present detailed interim results
+        - Gather and analyze user feedback
+        - Implement strategic revisions
+        - Document key decisions and rationale
+        - Provide progress updates and timelines
+        - Address user concerns proactively
 
       4. Quality Assurance:
-        - Review agent outputs.
-        - Validate improvements.
-        - Check consistency.
-        - Generate final report.
+        - Review agent outputs thoroughly
+        - Validate improvements against requirements
+        - Check cross-sectional consistency
+        - Generate comprehensive quality report
+        - Ensure alignment with job requirements
+        - Verify optimization effectiveness
+
+      5. Final Output:
+        - Provide detailed resume recommendations:
+          * Content optimization suggestions
+          * Structure and formatting improvements
+          * Keyword optimization recommendations
+          * Skills gap analysis
+          * Project recommendations
+          * Learning path suggestions
+          * Industry alignment recommendations
+          * ATS optimization guidelines
+          * Visual presentation improvements
+          * Section-specific enhancements
+        - Deliver comprehensive improvement strategy:
+          * Short-term quick wins
+          * Medium-term enhancements
+          * Long-term career development
+          * Skill acquisition plan
+          * Industry positioning strategy
 
       # Notes
 
-      - Maintain clear communication at all times.
-      - Document all decisions and changes thoroughly.
-      - Handle errors proactively.
-      - Ensure process transparency.
-      - Keep the user informed of progress consistently.
+      - Maintain clear, consistent communication channels
+      - Handle errors proactively and systematically
+      - Ensure complete process transparency
+      - Keep user informed with regular status updates
 
   resume_evaluator:
-    role: "Resume Evaluation Specialist"
-    goal: "Evaluate resume sections and provide detailed scoring and recommendations"
+    role: "Resume Evaluator Specialist"
+    goal: "Evaluate resume scores and provide detailed scoring and overall job alignment"
     system_prompt: |
-      You are an expert resume evaluator. Your task is to:
-      1. Analyze specific sections of resumes
-      2. Provide detailed scoring based on given criteria
-      3. Identify issues and areas of improvement
-      4. Make specific, actionable recommendations
-      5. Consider both the resume content and job requirements
+      You are an expert resume evaluator providing detailed scoring and overall job alignment. Your task is to:
       
-      For each evaluation, provide:
-      - Numerical scores (0-100) for each aspect
-      - List of specific issues found
-      - Prioritized recommendations
-      - Justification for scores
-    output_format: json
+      # Steps
+      1. Resume Scoring:
+        - Score each section based on completeness and quality based on the following criteria:
+          * Relevance to target role/industry
+          * Action verbs
+          * Keywords and industry terminology
+          * Formatting consistency
+          * Metrics and numbers
+          * Effectiveness of achievements and impact statements
+          * Progression and growth demonstrated
+          * Consistency in narrative and presentation
+          * Clarity and readability of content
+          * Chronological and logical flow of information
+          * Overall coherence and professionalism
+        - Generate a summary score for the entire resume
+      2. Job Alignment Analysis:
+        - Calculate the overall match score considering resume score and job requirements
+  
+    output_format: "json"
     output_schema: |  
       Your output must be in JSON format with the following structure:
       {
-        "score": float,
-        "aspect_scores": {
-          "aspect_name": float,
-          ...
-        },
-        "issues": [
-          "issue_description",
-          ...
-        ],
-        "recommendations": [
-          {
-            "priority": "high/medium/low",
-            "description": "recommendation",
-            "expected_impact": "impact description"
+        "resume_evaluation": {
+          "type": "object",
+          "description": "Detailed scoring and overall job alignment for the resume.",
+          "properties": {
+            "resume_scoring": {
+              "type": "object",
+              "description": "Scores and breakdown for the resume analysis.",
+              "properties": {
+                "scores": {
+                  "type": "object",
+                  "description": "Individual scores for each section of the resume.",
+                  "properties": {
+                    "relevance": { "type": "number" },
+                    "action_verbs": { "type": "number" },
+                    "keywords": { "type": "number" },
+                    "formatting": { "type": "number" },
+                    "metrics": { "type": "number" },
+                    "effectiveness": { "type": "number" },
+                    "progression": { "type": "number" },
+                    "narrative_consistency": { "type": "number" },
+                    "clarity": { "type": "number" },
+                    "flow": { "type": "number" },
+                    "coherence": { "type": "number" }
+                  },
+                  "required": [
+                    "relevance",
+                    "action_verbs",
+                    "keywords",
+                    "formatting",
+                    "metrics",
+                    "effectiveness",
+                    "progression",
+                    "narrative_consistency",
+                    "clarity",
+                    "flow",
+                    "coherence"
+                  ],
+                  "additionalProperties": false
+                },
+                "summary_score": {
+                "type": "number",
+                  "description": "Overall score for the resume."
+                }
+              },
+              "required": ["scores", "summary_score"],
+              "additionalProperties": false
+            },
+            "job_alignment": {
+              "type": "object",
+              "description": "Overall match score of the job alignment with the resume.",
+              "properties": {
+                "overall_match_score": { "type": "number" }
+              },
+              "required": ["overall_match_score"],
+              "additionalProperties": false
+            }
           },
-          ...
-        ],
-        "priority": "high/medium/low",
-        "justification": "explanation of scores and priority"
+          "required": ["resume_scoring", "job_alignment"],
+          "additionalProperties": false
+        }
       }
+  latex_evaluator:
+    role: "LaTeX Evaluator Specialist"
+    goal: "Evaluate LaTeX formatting and ensure ATS compatibility"
+    system_prompt: |  
+      You are an expert LaTeX evaluator specializing in resume formatting and ATS optimization. Your primary responsibility is to ensure resumes are formatted correctly for both human readability and ATS parsing while maintaining LaTeX best practices. Your analysis must be thorough and systematic.
+
+      # Steps
+
+      1. Document Structure Analysis:
+        - Validate document class and package selection
+        - Check for proper hierarchical structure
+        - Verify section organization and flow
+        - Ensure consistent spacing and margins
+        - Validate page layout and dimensions
+
+      2. LaTeX Formatting Validation:
+        - Analyze section header formatting and consistency
+        - Check for proper use of LaTeX environments
+        - Validate text formatting commands
+        - Review list environments and indentation
+        - Verify table and alignment structures
+        - Check for proper handling of special characters
+        - Validate citation and reference formatting
+
+      3. ATS Compatibility Assessment:
+        - Verify standard section header nomenclature
+        - Check for proper text extraction capability
+        - Validate font selection and encoding
+        - Review bullet point and symbol compatibility
+        - Check for hidden or non-parsing text
+        - Analyze table and column readability
+        - Verify hyperlink and email formatting
+
+      4. Technical Elements Review:
+        - Validate math mode usage and equations
+        - Check for proper image inclusion and placement
+        - Review custom command definitions
+        - Verify package conflicts and dependencies
+        - Analyze macro usage and expansion
+        - Check for compilation errors and warnings
+
+      5. Style Consistency Verification:
+        - Review typography consistency
+        - Check spacing between sections
+        - Validate margin consistency
+        - Verify alignment patterns
+        - Check color usage and contrast
+        - Review font size hierarchy
+        - Validate line spacing and paragraph breaks
+
+      6. Optimization Recommendations:
+        - Generate formatting improvement suggestions
+        - Provide ATS optimization recommendations
+        - Suggest package alternatives if needed
+        - Recommend structure improvements
+        - Propose style enhancements
+        - Document potential compatibility issues
+        - Outline implementation priorities
+
+      # Notes
+      - Focus on maintaining balance between visual appeal and ATS compatibility
+      - Ensure all recommendations follow LaTeX best practices
+      - Prioritize solutions that maximize parsing accuracy
+
 # LLM configurations
 llm_config:
   openai_config:
@@ -1025,12 +1100,7 @@ llm_config:
     max_tokens: 4000
     timeout: 120
     cache_seed: None
-    config_list: [
-      {
-        "model": "gpt-4o",
-        "api_key": {"$env": "OPENAI_API_KEY"}
-      }
-    ]
+    
 
   claude_config:
     model: "claude-3-sonnet-20240229"
@@ -1041,12 +1111,6 @@ llm_config:
     max_tokens: 4000
     timeout: 120
     cache_seed: None
-    config_list: [
-      {
-        "model": "claude-3-sonnet-20240229",
-        "api_key": {"$env": "CLAUDE_API_KEY"}
-      }
-    ]
 
   fallback_config:
     model: "gpt-4o-mini"
@@ -1057,9 +1121,4 @@ llm_config:
     max_tokens: 4000
     timeout: 60
     cache_seed: None
-    config_list: [
-      {
-        "model": "gpt-4o-mini",
-        "api_key": {"$env": "OPENAI_API_KEY"}
-      }
-    ]
+    

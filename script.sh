@@ -2,26 +2,29 @@
 
 # Function to display usage information
 show_usage() {
-    echo "Usage: $0 [--resume RESUME_PATH] [--job-description JD_PATH] [--output OUTPUT_PATH]"
+    echo "Usage: $0 --resume RESUME_PATH --job-description JD_PATH [OPTIONS]"
     echo
-    echo "Options:"
+    echo "Required:"
     echo "  --resume            Path to your resume file (PDF, DOCX, DOC, or TXT)"
-    echo "  --job-description   Path to job description file or the job description text"
-    echo "  --output           Optional: Path to save the output (default: output.json)"
-    echo "  --config-dir       Optional: Path to config directory (default: src/config)"
-    echo "  --non-interactive  Optional: Run in non-interactive mode"
+    echo "  --job-description   Path to job description file"
+    echo
+    echo "Optional:"
+    echo "  --output           Path to save output (default: output.json)"
+    echo "  --config-dir       Path to config directory (default: src/config)"
+    echo "  --non-interactive  Run in non-interactive mode"
     echo
     echo "Example:"
-    echo "  $0 --resume ./data/resume.pdf --job-description ./data/jd.txt"
+    echo "  $0 --resume resume.pdf --job-description job.txt"
 }
 
-# Parse command line arguments
-RESUME="/media/vasu/Hard Disk/Projects/CraftMyCV/data/Trial.pdf"
-JD="/media/vasu/Hard Disk/Projects/CraftMyCV/data/jd.txt"
-OUTPUT="output.json"
-CONFIG_DIR="src/config"
+# Default values
+RESUME="/media/vasu/Hard Disk/Projects/CV_Customization_System/data/input/resume.pdf"
+JD="/media/vasu/Hard Disk/Projects/CV_Customization_System/data/input/jd.txt"
+OUTPUT="/media/vasu/Hard Disk/Projects/CV_Customization_System/data/output/output.json"
+CONFIG_DIR="/media/vasu/Hard Disk/Projects/CV_Customization_System/src/config"
 INTERACTIVE=""
 
+# Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --resume)
@@ -56,7 +59,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Validate required arguments
+# Check required arguments
 if [[ -z "$RESUME" ]] || [[ -z "$JD" ]]; then
     echo "Error: Both --resume and --job-description are required"
     show_usage
@@ -69,8 +72,8 @@ if [[ ! -f "$RESUME" ]]; then
     exit 1
 fi
 
-if [[ -f "$JD" ]] && [[ ! -r "$JD" ]]; then
-    echo "Error: Job description file exists but is not readable: $JD"
+if [[ ! -f "$JD" ]]; then
+    echo "Error: Job description file not found: $JD"
     exit 1
 fi
 
@@ -80,83 +83,55 @@ if [[ ! -d "$CONFIG_DIR" ]]; then
     exit 1
 fi
 
-# Check for required config files
-for config_file in "agents.yaml" "templates.yaml" "projects.yaml"; do
-    if [[ ! -f "$CONFIG_DIR/$config_file" ]]; then
-        echo "Error: Required config file not found: $CONFIG_DIR/$config_file"
-        exit 1
-    fi
-done
-
-# Check if conda is available
+# Check for conda
 if ! command -v conda &> /dev/null; then
-    echo "Error: conda is not installed or not in PATH"
-    echo "Please install Miniconda or Anaconda first"
+    echo "Error: conda is not installed"
     exit 1
 fi
 
-# Check if environment.yml exists
-if [[ ! -f "environment.yml" ]]; then
-    echo "Error: environment.yml not found in current directory"
-    exit 1
-fi
-
-# Initialize conda for shell interaction
+# Initialize conda
 eval "$(conda shell.bash hook)"
 
-# Get the environment name from environment.yml
-ENV_NAME=$(grep "name:" environment.yml | cut -d' ' -f2)
-
+# Get environment name from environment.yml
+ENV_NAME=$(grep "name:" env/environment.yml | cut -d' ' -f2)
 if [[ -z "$ENV_NAME" ]]; then
-    echo "Error: Could not determine environment name from environment.yml"
+    echo "Error: Could not find environment name in environment.yml"
     exit 1
 fi
 
-# Check if environment exists
-if conda env list | grep -q "^$ENV_NAME "; then
-    echo "Environment $ENV_NAME exists, activating..."
-else
-    echo "Creating conda environment from environment.yml..."
-    if ! conda env create -f environment.yml; then
-        echo "Error: Failed to create conda environment"
-        exit 1
-    fi
+# Create or activate conda environment
+if ! conda env list | grep -q "^$ENV_NAME "; then
+    echo "Creating conda environment..."
+    conda env create -f env/environment.yml
 fi
 
-# Activate the environment
-echo "Activating environment $ENV_NAME..."
-if ! conda activate "$ENV_NAME"; then
-    echo "Error: Failed to activate conda environment"
-    exit 1
-fi
+# Activate environment
+echo "Activating conda environment..."
+conda activate "$ENV_NAME"
 
-# Install required packages if not already installed
-echo "Installing/updating dependencies..."
-pip install -q autogen pdf2image python-docx pytesseract olefile pyyaml python-dotenv || {
-    echo "Error: Failed to install required packages"
-    conda deactivate
-    exit 1
-}
+# Install required pip packages
+echo "Installing required pip packages..."
+pip install -q autogen autogen-agentchat aiofiles
 
-# Run the main application
-echo "Starting CV customization process..."
-python src/scripts/cv_customization_system.py \
+# Add src directory to PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:/media/vasu/Hard Disk/Projects/CV_Customization_System/src"
+
+# Run the main script
+echo "Starting CV customization..."
+if python src/scripts/cv_customization_system.py \
     --resume "$RESUME" \
     --job-description "$JD" \
     --output "$OUTPUT" \
     --config-dir "$CONFIG_DIR" \
-    $INTERACTIVE
-
-# Check if the script ran successfully
-if [[ $? -eq 0 ]]; then
+    $INTERACTIVE; then
     echo "CV customization completed successfully!"
     echo "Output saved to: $OUTPUT"
 else
-    echo "Error: CV customization process failed"
+    echo "Error: CV customization failed"
     conda deactivate
     exit 1
 fi
 
-# Deactivate conda environment
+# Cleanup
 conda deactivate
 
