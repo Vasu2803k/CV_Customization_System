@@ -258,94 +258,102 @@ class CVCustomizationSystem:
         raise Exception(f"All LLM attempts failed for {chat_name}:\n{error_chain}")
 
     def _get_speaker_transition(self, chat_name: str, last_speaker: str, messages: List[Dict], llm_type: str) -> Optional[str]:
-        """Determine the next speaker based on chat phase and last speaker."""
+        """
+        Determine the next speaker based on chat phase and last speaker with more robust logic.
         
+        Args:
+            chat_name (str): Name of the chat phase
+            last_speaker (str): Name of the last speaker
+            messages (List[Dict]): Historical messages in the conversation
+            llm_type (str): Type of LLM being used
+        
+        Returns:
+            Optional[str]: Name of the next speaker or None if conversation should end
+        """
+        def count_role_occurrences(role_prefix: str) -> int:
+            """
+            Count occurrences of messages with a specific role prefix.
+            
+            Args:
+                role_prefix (str): Prefix of the role to count
+            
+            Returns:
+                int: Number of messages with the specified role prefix
+            """
+            return sum(1 for msg in messages 
+                    if isinstance(msg, dict) and 
+                    msg.get("role", "").startswith(role_prefix))
+
         if chat_name == "analysis":
-            # Analysis phase: analyzer -> scorer -> analyzer
-            if last_speaker == "chat_manager":
+            # Analysis phase: manager -> analyzer -> scorer
+            if last_speaker == "manager":
                 return f"analyzer_{llm_type}"
             elif last_speaker.startswith("analyzer"):
                 return f"resume_scorer_{llm_type}"
-            return None
+            elif last_speaker.startswith("resume_scorer"):
+                return None  # End the conversation after scorer
         
         elif chat_name == "optimization":
-            # Count completed rounds by tracking optimizer appearances
-            optimizer_count = sum(1 for msg in messages if msg.get("role", "").startswith("optimizer"))
+            # Optimization phase with more flexible round tracking
+            optimizer_count = count_role_occurrences("optimizer")
             
-            # Initial round: recommender -> optimizer -> scorer -> evaluator
-            if last_speaker == "chat_manager":
+            if last_speaker == "manager":
                 return f"project_recommender_{llm_type}"
             elif last_speaker.startswith("project_recommender"):
                 return f"optimizer_{llm_type}"
             elif last_speaker.startswith("optimizer"):
                 return f"resume_scorer_{llm_type}"
             elif last_speaker.startswith("resume_scorer"):
-                # In the final round (4th), stop at scorer
-                if optimizer_count > 3:
+                # More flexible round termination
+                if optimizer_count >= 3:
                     return None
                 return f"content_evaluator_{llm_type}"
             elif last_speaker.startswith("content_evaluator"):
                 return f"optimizer_{llm_type}"
-            return None
         
         elif chat_name == "formatting":
-            # Formatting phase: formatter -> evaluator -> formatter
-            if last_speaker == "chat_manager":
+            # Formatting phase with improved round tracking
+            formatter_count = count_role_occurrences("formatter")
+            
+            if last_speaker == "manager":
                 return f"formatter_{llm_type}"
             elif last_speaker.startswith("formatter"):
+                # More precise round termination
+                if formatter_count >= 2:
+                    return f"latex_evaluator_{llm_type}"
                 return f"latex_evaluator_{llm_type}"
             elif last_speaker.startswith("latex_evaluator"):
                 return f"formatter_{llm_type}"
-            return None
-        
+            
         return None
 
     async def _run_group_chat(
-        self,
-        chat_name: str,
-        prompt: str,
-        message_id: str,
-        llm_type: str = "primary"
+    self,
+    chat_name: str,
+    prompt: str,
+    message_id: str,
+    llm_type: str = "primary"
     ) -> Dict:
-        """Run a specific group chat with the given LLM type."""
+        """
+        Run a specific group chat with the given LLM type.
+        
+        Args:
+            chat_name (str): Name of the chat phase
+            prompt (str): Initial prompt for the group chat
+            message_id (str): Unique identifier for the chat session
+            llm_type (str): Type of LLM to use (primary or fallback)
+        
+        Returns:
+            Dict: Comprehensive chat results including messages, output, and metadata
+        """
         try:
             # Get the appropriate agents based on chat name
-            chat_agents = []
-
-            # Create custom speaker selection function
-            def select_next_speaker(
-                step: int,
-                messages: List[Dict],
-                agents: List[ConversableAgent],
-                last_speaker: Optional[str],
-                **kwargs
-            ) -> Optional[ConversableAgent]:
-                next_speaker_name = self._get_speaker_transition(
-                    chat_name,
-                    last_speaker or "chat_manager",
-                    messages,
-                    llm_type
-                )
-                if next_speaker_name:
-                    for agent in agents:
-                        if agent.name == next_speaker_name:
-                            return agent
-                return None
-
-            # Create group chat with phase-specific configuration
             if chat_name == "analysis":
                 chat_agents = [
                     self.agents["analyzer"][llm_type],
                     self.agents["resume_scorer"][llm_type]
                 ]
-                # Create group chat with appropriate configuration
-                chat = GroupChat(
-                    agents=chat_agents,
-                    messages=[],
-                    max_round=1,  # analyzer -> scorer
-                    speaker_selection_method=select_next_speaker,
-                    allow_repeat_speaker=True
-                )
+                max_rounds = 2 
             elif chat_name == "optimization":
                 chat_agents = [
                     self.agents["project_recommender"][llm_type],
@@ -353,25 +361,68 @@ class CVCustomizationSystem:
                     self.agents["resume_scorer"][llm_type],
                     self.agents["content_evaluator"][llm_type]
                 ]
-                chat = GroupChat(
-                    agents=chat_agents,
-                    messages=[],
-                    max_round=4,  # recommender -> optimizer -> scorer -> evaluator -> optimizer ->scorer
-                    speaker_selection_method=select_next_speaker,
-                    allow_repeat_speaker=True
-                )
+                max_rounds = 4  
             elif chat_name == "formatting":
                 chat_agents = [
                     self.agents["formatter"][llm_type],
                     self.agents["latex_evaluator"][llm_type]
                 ]
-                chat = GroupChat(
-                    agents=chat_agents,
-                    messages=[],
-                    max_round=3,  # formatter -> evaluator -> formatter
-                    speaker_selection_method=select_next_speaker,
-                    allow_repeat_speaker=True
-                )
+                max_rounds = 3  
+            else:
+                raise ValueError(f"Invalid chat name: {chat_name}")
+
+            def select_next_speaker(
+                groupchat,
+                messages: List[Dict],
+                sender: Optional[ConversableAgent] = None,
+                config: Optional[Dict] = None
+            ) -> Optional[ConversableAgent]:
+                """
+                Enhanced speaker selection with improved error handling and logging.
+                
+                Args:
+                    groupchat: The group chat instance
+                    messages: Historical messages in the conversation
+                    sender: Previous sender (optional)
+                    config: Additional configuration (optional)
+                
+                Returns:
+                    Optional[ConversableAgent]: Next speaker agent or None
+                """
+                try:
+                    # Handle initial case when no messages exist
+                    last_speaker = "manager" if not messages else messages[-1].get("role", "unknown")
+                    
+                    # Get next speaker name
+                    next_speaker_name = self._get_speaker_transition(
+                        chat_name,
+                        last_speaker,
+                        messages,
+                        llm_type
+                    )
+                    
+                    # Find and return the corresponding agent
+                    if next_speaker_name:
+                        for agent in groupchat.agents:
+                            if hasattr(agent, 'name') and agent.name == next_speaker_name:
+                                return agent
+                    
+                    # Logging for debugging
+                    self.logger.info(f"No next speaker found. Last speaker: {last_speaker}")
+                    return None
+
+                except Exception as e:
+                    self.logger.error(f"Error in speaker selection: {str(e)}")
+                    return None
+
+            # Create group chat with appropriate configuration
+            chat = GroupChat(
+                agents=chat_agents,
+                messages=[],
+                max_round=max_rounds,
+                speaker_selection_method=select_next_speaker,
+                allow_repeat_speaker=True
+            )
 
             # Set LLM configuration
             llm_config = self.primary_config if llm_type == "primary" else self.fallback_config
@@ -386,14 +437,13 @@ class CVCustomizationSystem:
             
             # Run the chat and return results
             start_time = time.time()
-            chat_result = manager.initiate_chat(
+            chat_messages = await manager.initiate_chat(
                 manager,
                 message=prompt
             )
             end_time = time.time()
             
-            # TODO:
-            # Extract all messages from the chat
+            # Process the chat messages
             result = {
                 "messages": [],
                 "final_output": None,
@@ -405,7 +455,7 @@ class CVCustomizationSystem:
             }
             
             # Process messages and extract the final output
-            for message in chat.messages:
+            for message in chat_messages:
                 msg_data = {
                     "role": message.get("role", "unknown"),
                     "content": message.get("content", ""),
@@ -414,7 +464,7 @@ class CVCustomizationSystem:
                 result["messages"].append(msg_data)
                 
                 # Process the last message based on the agent's role
-                if message == chat.messages[-1]:
+                if message == chat_messages[-1]:
                     speaker_role = message.get("role", "")
                     
                     # Handle JSON output for specific agents
@@ -458,11 +508,20 @@ class CVCustomizationSystem:
                 tokens=estimated_tokens,
                 cost=estimated_cost
             )
-            
+
             return result
+
         except Exception as e:
-            self.logger.error(f"Error in group chat {chat_name}: {str(e)}")
-            raise Exception(f"Error in group chat {chat_name} with {llm_type} LLM: {str(e)}")
+            self.logger.error(f"Group chat execution failed: {str(e)}")
+            return {
+                "messages": [],
+                "final_output": None,
+                "metadata": {
+                    "error": str(e),
+                    "llm_type": llm_type,
+                    "chat_name": chat_name
+                }
+            }
 
     async def process_resume(
         self,
@@ -477,15 +536,23 @@ class CVCustomizationSystem:
             self.metrics["start_time"] = datetime.now()
 
             # Phase 1: Analysis with fallback
+            analysis_prompt = f"""Please analyze the following resume and job description:
+
+            RESUME TEXT:
+            {resume_text}
+
+            JOB DESCRIPTION:
+            {job_description}
+
+            Follow these steps:
+            1. First, the resume analyzer should analyze the resume and job description
+            2. Then, the resume scorer should score the alignment between them
+            
+            Provide detailed analysis following the specified output schema."""
+
             analysis_result = await self._run_group_chat_with_fallback(
                 "analysis",
-                f"""Analyze resume and job description following the specified workflow:
-                
-                Resume:
-                {resume_text}
-
-                Job Description:
-                {job_description}""",
+                analysis_prompt,
                 "analysis_phase"
             )
 
