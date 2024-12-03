@@ -36,9 +36,9 @@ data/output/
 data/logs/
 
 # cache
-.cache/
+.cache
 cache.db
-
+.cache/
 # temp
 temp.py
 
