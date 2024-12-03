@@ -320,7 +320,7 @@ class CVCustomizationSystem:
             elif last_speaker.startswith("formatter"):
                 # More precise round termination
                 if formatter_count >= 2:
-                    return f"latex_evaluator_{llm_type}"
+                    return None
                 return f"latex_evaluator_{llm_type}"
             elif last_speaker.startswith("latex_evaluator"):
                 return f"formatter_{llm_type}"
