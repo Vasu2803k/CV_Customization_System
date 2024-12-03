@@ -38,7 +38,7 @@ data/logs/
 # cache
 .cache
 cache.db
-.cache/
+/media/vasu/Hard Disk/Projects/CV_Customization_System/.cache
 # temp
 temp.py
 
