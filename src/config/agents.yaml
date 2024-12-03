@@ -433,7 +433,7 @@ agents:
                     {
                       "type": "array",
                       "items": { "type": "string" },
-                      "description": "Highlights of the project in bullet points"
+                      "description": "Highlights of the project in bullet points or list"
                     },
                     {
                       "type": "string",
@@ -534,7 +534,7 @@ agents:
           - Strengthen technical descriptions
 
       3. Summary Optimization
-        - Create a summary that is achievement-focused and aligns with job requirements
+        - Create a summary that is achievement-focused and aligns with job requirements considering the optimized content followed by the optimization process.
         - Ensure summary is of 4-5 sentences paragraph in length
         - Ensure summary flows naturally from optimized content
 
@@ -852,35 +852,47 @@ agents:
             "description": "Scores and breakdown for the resume scoring.",
             "properties": {
               "scores": {
-                "type": "object",
+                "type": "array",
                 "description": "Individual scores for each section of the resume.",
-                "properties": {
-                  "relevance": { "type": "number" },
-                  "action_verbs": { "type": "number" },
-                  "keywords": { "type": "number" },
-                  "formatting": { "type": "number" },
-                  "metrics": { "type": "number" },
-                  "effectiveness": { "type": "number" },
-                  "progression": { "type": "number" },
-                  "narrative_consistency": { "type": "number" },
-                  "clarity": { "type": "number" },
-                  "flow": { "type": "number" },
-                  "coherence": { "type": "number" }
-                },
-                "required": [
-                  "relevance",
-                  "action_verbs",
-                  "keywords",
-                  "formatting",
-                  "metrics",
-                  "effectiveness",
-                  "progression",
-                  "narrative_consistency",
-                  "clarity",
-                  "flow",
-                  "coherence"
-                ],
-                "additionalProperties": false
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "section": { "type": "string" },
+                    "score": { "type": "number" },
+                    "metrics": {
+                      "type": "object",
+                      "properties": {
+                        "relevance": { "type": "number" },
+                        "action_verbs": { "type": "number" },
+                        "keywords": { "type": "number" },
+                        "formatting": { "type": "number" },
+                        "metrics": { "type": "number" },
+                        "effectiveness": { "type": "number" },
+                        "progression": { "type": "number" },
+                        "narrative_consistency": { "type": "number" },
+                        "clarity": { "type": "number" },
+                        "flow": { "type": "number" },
+                        "coherence": { "type": "number" }
+                      },
+                      "required": [
+                        "relevance",
+                        "action_verbs", 
+                        "keywords",
+                        "formatting",
+                        "metrics",
+                        "effectiveness",
+                        "progression",
+                        "narrative_consistency",
+                        "clarity",
+                        "flow",
+                        "coherence"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["section", "score", "metrics"],
+                  "additionalProperties": false
+                }
               },
               "summary_score": {
                 "type": "number",
@@ -900,7 +912,7 @@ agents:
             "additionalProperties": false
           }
         },
-        "required": ["resume_score_analysis", "job_alignment"],
+        "required": ["resume_scoring", "job_alignment"],
         "additionalProperties": false
       }
 
@@ -912,20 +924,24 @@ agents:
 
       # Steps
       1. Content Analysis:
-        - Evaluate resume content quality and identify improvements
-        - Highlight strengths and weaknesses
-        - Provide actionable section-specific feedback
+        - Evaluate each section's content quality and identify improvements:
+          * Professional Summary: Assess impact, relevance and conciseness
+          * Work Experience: Review achievement focus and quantifiable results
+          * Skills: Validate technical and soft skills organization and relevance to the job requirements
+          * Projects: Evaluate project descriptions and outcomes
+          * Additional Sections: Review certifications, awards, etc.
+        - Highlight section-specific strengths and weaknesses
+        - Provide actionable feedback for each component
 
-      2. Content Enhancement:
-        - Recommend optimizations to improve scoring
-        - Enhance narrative flow and clarity
-        - Refine content presentation
-
-      3. Optimization Recommendations:
-        - Generate optimization suggestions
-        - Provide targeted feedback for each section
-        - Suggest improvements in narrative flow and clarity
-        - Refine content presentation
+      2. Optimization Recommendations:
+        - Generate section-by-section optimization suggestions:
+          * Professional Summary: Enhance personal branding and value proposition
+          * Work Experience: Strengthen achievement statements and metrics
+          * Skills: Improve skills categorization and relevance
+          * Projects: Refine project impact descriptions
+          * Additional Sections: Enhance supplementary content
+        - Suggest improvements in cross-section narrative flow and clarity
+        - Provide specific content refinement recommendations per section
 
     output_format: "markdown"
 

@@ -266,31 +266,33 @@ class CVCustomizationSystem:
                 return f"analyzer_{llm_type}"
             elif last_speaker.startswith("analyzer"):
                 return f"resume_scorer_{llm_type}"
-            elif last_speaker.startswith("resume_scorer"):
-                return f"analyzer_{llm_type}"
             return None
         
         elif chat_name == "optimization":
-            # Optimization phase: recommender -> optimizer -> scorer -> evaluator -> optimizer
+            # Count completed rounds by tracking optimizer appearances
+            optimizer_count = sum(1 for msg in messages if msg.get("role", "").startswith("optimizer"))
+            
+            # Initial round: recommender -> optimizer -> scorer -> evaluator
             if last_speaker == "chat_manager":
-                return f"optimizer_{llm_type}"
+                return f"project_recommender_{llm_type}"
             elif last_speaker.startswith("project_recommender"):
                 return f"optimizer_{llm_type}"
             elif last_speaker.startswith("optimizer"):
                 return f"resume_scorer_{llm_type}"
             elif last_speaker.startswith("resume_scorer"):
+                # In the final round (4th), stop at scorer
+                if optimizer_count > 3:
+                    return None
                 return f"content_evaluator_{llm_type}"
             elif last_speaker.startswith("content_evaluator"):
                 return f"optimizer_{llm_type}"
             return None
         
         elif chat_name == "formatting":
-            # Formatting phase: formatter -> scorer -> evaluator -> formatter
+            # Formatting phase: formatter -> evaluator -> formatter
             if last_speaker == "chat_manager":
                 return f"formatter_{llm_type}"
             elif last_speaker.startswith("formatter"):
-                return f"resume_scorer_{llm_type}"
-            elif last_speaker.startswith("resume_scorer"):
                 return f"latex_evaluator_{llm_type}"
             elif last_speaker.startswith("latex_evaluator"):
                 return f"formatter_{llm_type}"
@@ -340,7 +342,7 @@ class CVCustomizationSystem:
                 chat = GroupChat(
                     agents=chat_agents,
                     messages=[],
-                    max_round=2,  # analyzer -> scorer -> analyzer
+                    max_round=1,  # analyzer -> scorer
                     speaker_selection_method=select_next_speaker,
                     allow_repeat_speaker=True
                 )
@@ -354,20 +356,19 @@ class CVCustomizationSystem:
                 chat = GroupChat(
                     agents=chat_agents,
                     messages=[],
-                    max_round=3,  # recommender -> optimizer -> scorer -> evaluator -> optimizer
+                    max_round=4,  # recommender -> optimizer -> scorer -> evaluator -> optimizer ->scorer
                     speaker_selection_method=select_next_speaker,
                     allow_repeat_speaker=True
                 )
             elif chat_name == "formatting":
                 chat_agents = [
                     self.agents["formatter"][llm_type],
-                    self.agents["resume_scorer"][llm_type],
                     self.agents["latex_evaluator"][llm_type]
                 ]
                 chat = GroupChat(
                     agents=chat_agents,
                     messages=[],
-                    max_round=3,  # formatter -> scorer -> evaluator -> formatter
+                    max_round=3,  # formatter -> evaluator -> formatter
                     speaker_selection_method=select_next_speaker,
                     allow_repeat_speaker=True
                 )
@@ -391,6 +392,7 @@ class CVCustomizationSystem:
             )
             end_time = time.time()
             
+            # TODO:
             # Extract all messages from the chat
             result = {
                 "messages": [],
@@ -516,10 +518,14 @@ class CVCustomizationSystem:
                     "Optimization"
                 )
 
+            # TODO:
+            # Select template
+            # template_name = await self._select_template()
+
             # Phase 3: Formatting with fallback and template selection
             formatting_prompt = f"""Format optimized resume:
 
-            Available Templates:
+            Available Template:
             {json.dumps(self.config['templates'], indent=2)}
 
             Optimized Content:
