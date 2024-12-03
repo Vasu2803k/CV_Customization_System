@@ -35,6 +35,9 @@ ENV/
 data/output/
 data/logs/
 
+# cache
+.cache/
+cache.db
 
 # temp
 temp.py

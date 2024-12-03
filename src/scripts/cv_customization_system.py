@@ -328,11 +328,11 @@ class CVCustomizationSystem:
         return None
 
     async def _run_group_chat(
-    self,
-    chat_name: str,
-    prompt: str,
-    message_id: str,
-    llm_type: str = "primary"
+        self,
+        chat_name: str,
+        prompt: str,
+        message_id: str,
+        llm_type: str = "primary"
     ) -> Dict:
         """
         Run a specific group chat with the given LLM type.
@@ -353,7 +353,6 @@ class CVCustomizationSystem:
                     self.agents["analyzer"][llm_type],
                     self.agents["resume_scorer"][llm_type]
                 ]
-                max_rounds = 3
             elif chat_name == "optimization":
                 chat_agents = [
                     self.agents["project_recommender"][llm_type],
@@ -361,54 +360,45 @@ class CVCustomizationSystem:
                     self.agents["resume_scorer"][llm_type],
                     self.agents["content_evaluator"][llm_type]
                 ]
-                max_rounds = 4  
             elif chat_name == "formatting":
                 chat_agents = [
                     self.agents["formatter"][llm_type],
                     self.agents["latex_evaluator"][llm_type]
                 ]
-                max_rounds = 3  
             else:
                 raise ValueError(f"Invalid chat name: {chat_name}")
 
+            # Corrected the function signature to match autogen's expectations
             def select_next_speaker(
-                groupchat,
-                messages: List[Dict],
-                sender: Optional[ConversableAgent] = None,
-                config: Optional[Dict] = None
+                last_speaker: Optional[ConversableAgent],
+                groupchat: GroupChat
             ) -> Optional[ConversableAgent]:
                 """
                 Enhanced speaker selection with improved error handling and logging.
-                
-                Args:
-                    groupchat: The group chat instance
-                    messages: Historical messages in the conversation
-                    sender: Previous sender (optional)
-                    config: Additional configuration (optional)
-                
-                Returns:
-                    Optional[ConversableAgent]: Next speaker agent or None
                 """
                 try:
                     # Handle initial case when no messages exist
-                    last_speaker = "manager" if not messages else messages[-1].get("role", "unknown")
-                    
+                    if last_speaker is None:
+                        last_speaker_name = "manager"
+                    else:
+                        last_speaker_name = last_speaker.name
+
                     # Get next speaker name
                     next_speaker_name = self._get_speaker_transition(
                         chat_name,
-                        last_speaker,
-                        messages,
+                        last_speaker_name,
+                        groupchat.messages,
                         llm_type
                     )
-                    
+
                     # Find and return the corresponding agent
                     if next_speaker_name:
                         for agent in groupchat.agents:
-                            if hasattr(agent, 'name') and agent.name == next_speaker_name:
+                            if agent.name == next_speaker_name:
                                 return agent
-                    
+
                     # Logging for debugging
-                    self.logger.info(f"No next speaker found. Last speaker: {last_speaker}")
+                    self.logger.info(f"No next speaker found. Last speaker: {last_speaker_name}")
                     return None
 
                 except Exception as e:
@@ -419,7 +409,6 @@ class CVCustomizationSystem:
             chat = GroupChat(
                 agents=chat_agents,
                 messages=[],
-                max_round=max_rounds,
                 speaker_selection_method=select_next_speaker,
                 allow_repeat_speaker=True
             )
@@ -427,17 +416,23 @@ class CVCustomizationSystem:
             # Set LLM configuration
             llm_config = self.primary_config if llm_type == "primary" else self.fallback_config
             
+            # Initialize GroupChatManager
             manager = GroupChatManager(
                 groupchat=chat,
-                llm_config=llm_config,
+                llm_config=llm_config
+            )
+
+            # Create a UserProxyAgent to initiate the chat
+            manager_agent = UserProxyAgent(
+                name="manager",
                 system_message=f"""Manage the CV {chat_name} process effectively.
                 Ensure all responses are complete and follow the specified schema exactly.
                 Do not truncate or omit any information. Terminate after all the steps are complete."""
             )
-            
-            # Run the chat and return results
+
+            # Initiate chat using manager_agent
             start_time = time.time()
-            chat_messages = await manager.initiate_chat(
+            chat_messages = manager_agent.initiate_chat(
                 manager,
                 message=prompt
             )
@@ -453,61 +448,6 @@ class CVCustomizationSystem:
                     "chat_name": chat_name
                 }
             }
-            
-            # Process messages and extract the final output
-            for message in chat_messages:
-                msg_data = {
-                    "role": message.get("role", "unknown"),
-                    "content": message.get("content", ""),
-                    "timestamp": message.get("timestamp", datetime.now().isoformat())
-                }
-                result["messages"].append(msg_data)
-                
-                # Process the last message based on the agent's role
-                if message == chat_messages[-1]:
-                    speaker_role = message.get("role", "")
-                    
-                    # Handle JSON output for specific agents
-                    if any(role in speaker_role for role in [
-                        "analyzer",
-                        "project_recommender",
-                        "optimizer",
-                        "resume_scorer",
-                        "content_evaluator"
-                    ]):
-                        try:
-                            result["final_output"] = json.loads(message["content"])
-                        except json.JSONDecodeError as e:
-                            self.logger.error(f"Failed to parse JSON from {speaker_role}: {str(e)}")
-                            result["final_output"] = {
-                                "error": "Invalid JSON format",
-                                "content": message["content"]
-                            }
-                    
-                    # Handle LaTeX/text output for formatting agents
-                    elif any(role in speaker_role for role in [
-                        "formatter",
-                        "latex_evaluator"
-                    ]):
-                        result["final_output"] = message["content"]
-                    
-                    # Handle unknown agent types
-                    else:
-                        self.logger.warning(f"Unknown agent role for final message: {speaker_role}")
-                        result["final_output"] = message["content"]
-
-            # Update metrics
-            # Estimate tokens and cost based on message lengths
-            total_chars = sum(len(msg["content"]) for msg in result["messages"])
-            estimated_tokens = total_chars // 4  # Rough estimation
-            estimated_cost = (estimated_tokens / 1000) * (0.03 if llm_type == "primary" else 0.01)
-            
-            self._update_step_metrics(
-                step_name=f"{chat_name}_{message_id}",
-                duration=end_time - start_time,
-                tokens=estimated_tokens,
-                cost=estimated_cost
-            )
 
             return result
 
@@ -542,13 +482,7 @@ class CVCustomizationSystem:
             {resume_text}
 
             JOB DESCRIPTION:
-            {job_description}
-
-            Follow these steps:
-            1. First, the resume analyzer should analyze the resume and job description
-            2. Then, the resume scorer should score the alignment between them
-            
-            Provide detailed analysis following the specified output schema."""
+            {job_description}"""
 
             analysis_result = await self._run_group_chat_with_fallback(
                 "analysis",
@@ -556,11 +490,6 @@ class CVCustomizationSystem:
                 "analysis_phase"
             )
 
-            if interactive:
-                analysis_result = await self._handle_user_interaction(
-                    analysis_result, 
-                    "Analysis"
-                )
 
             # Phase 2: Optimization with fallback
             optimization_result = await self._run_group_chat_with_fallback(
@@ -578,12 +507,6 @@ class CVCustomizationSystem:
                 """,
                 "optimization_phase"
             )
-
-            if interactive:
-                optimization_result = await self._handle_user_interaction(
-                    optimization_result,
-                    "Optimization"
-                )
 
             # TODO:
             # Select template
@@ -605,21 +528,7 @@ class CVCustomizationSystem:
                 "formatting_phase"
             )
 
-            # Prepare output with metrics
-            output = {
-                "analysis": analysis_result,
-                "optimization": optimization_result,
-                "formatting": formatting_result,
-                "metadata": {
-                    "processed_at": datetime.now().isoformat(),
-                    "metrics": self.metrics
-                }
-            }
-
-            await self._save_output(output, output_path)
-            self.logger.info(f"Processing completed. Output saved to {output_path}")
-            
-            return output
+            return formatting_result
 
         except Exception as e:
             self.logger.error(f"Error during processing: {str(e)}")
@@ -633,143 +542,6 @@ class CVCustomizationSystem:
             return self.config["templates"][template_name]["content"]
         except Exception as e:
             self.logger.error(f"Error loading template {template_name}: {str(e)}")
-            raise
-
-    def _update_step_metrics(self, step_name: str, duration: float, tokens: int, cost: float, retries: int = 0) -> None:
-        """Update metrics for a specific processing step."""
-        self.metrics["steps"][step_name] = {
-            "duration": duration,
-            "tokens": tokens,
-            "cost": cost,
-            "retries": retries
-        }
-        
-        # Update cumulative metrics
-        self.metrics["cumulative"]["total_duration"] += duration
-        self.metrics["cumulative"]["total_tokens"] += tokens
-        self.metrics["cumulative"]["total_cost"] += cost
-        self.metrics["cumulative"]["total_retries"] += retries
-
-    async def _save_output(self, output: Dict, output_path: Path) -> None:
-        """Save the processing output and metrics to file."""
-        try:
-            # Ensure the output directory exists
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Add final metrics
-            self.metrics["end_time"] = datetime.now()
-            if self.metrics["start_time"]:
-                total_duration = (self.metrics["end_time"] - self.metrics["start_time"]).total_seconds()
-                self.metrics["cumulative"]["total_duration"] = total_duration
-            
-            # Prepare the complete output
-            final_output = {
-                **output,
-                "metrics": self.metrics
-            }
-            
-            # Save to file
-            with open(output_path, 'w', encoding='utf-8') as f:
-                json.dump(final_output, f, indent=2, default=str)
-            
-            self.logger.info(f"Output saved successfully to {output_path}")
-            
-        except Exception as e:
-            self.logger.error(f"Error saving output: {str(e)}")
-            raise
-
-    async def _handle_user_interaction(
-        self,
-        phase_result: Dict,
-        phase_name: str
-    ) -> Dict:
-        """Handle user interaction for different phases of resume processing."""
-        try:
-            print(f"\n=== {phase_name} Phase Results ===\n")
-            
-            if phase_name == "Analysis":
-                # Extract relevant information from analysis results
-                resume_components = phase_result.get("resume_components", {})
-                job_requirements = phase_result.get("job_requirements", {})
-                job_alignment = phase_result.get("job_alignment", {})
-                
-                # Display missing skills and job requirements
-                print("\nMissing Skills:")
-                skill_gaps = job_alignment.get("skill_gaps", {}).get("missing_skills", [])
-                for idx, skill in enumerate(skill_gaps, 1):
-                    print(f"{idx}. {skill['skill']} (Priority: {skill['priority']}, Learning Time: {skill['learning_time']})")
-                
-                print("\nJob Requirements:")
-                critical_reqs = job_requirements.get("prioritized_requirements", {}).get("critical", [])
-                preferred_reqs = job_requirements.get("prioritized_requirements", {}).get("preferred", [])
-                
-                print("\nCritical Requirements:")
-                for idx, req in enumerate(critical_reqs, 1):
-                    print(f"{idx}. {req}")
-                
-                print("\nPreferred Requirements:")
-                for idx, req in enumerate(preferred_reqs, 1):
-                    print(f"{idx}. {req}")
-                
-                # Ask for user confirmation
-                while True:
-                    response = await aioconsole.ainput("\nDo you want to proceed with these requirements? (yes/no): ")
-                    if response.lower() in ['yes', 'y']:
-                        return phase_result
-                    elif response.lower() in ['no', 'n']:
-                        print("Process terminated by user.")
-                        sys.exit(0)
-                    else:
-                        print("Please enter 'yes' or 'no'")
-                    
-            elif phase_name == "Optimization":
-                # Extract project recommendations
-                project_recommendations = phase_result.get("project_recommendations", [])
-                
-                print("\nRecommended Projects for Skill Improvement:")
-                for idx, project in enumerate(project_recommendations, 1):
-                    print(f"\n{idx}. {project['project_title']}")
-                    print(f"   Estimated Time: {project['estimated_time']}")
-                    print("   Skills Covered:")
-                    for skill in project['skill_coverages']['skills']:
-                        print(f"   - {skill}")
-                    print("   Technologies Used:")
-                    for tech in project['skill_coverages']['technologies']:
-                        print(f"   - {tech}")
-                    print(f"   Implementation Trade-offs:")
-                    print(f"   - Skills Gained: {project['implementation_tradeoffs']['skills_gained']}")
-                    print(f"   - Time Investment: {project['implementation_tradeoffs']['time_invested']}")
-                    print(f"   - Priority: {project['implementation_tradeoffs']['covered_skills_priority']}")
-                    
-                    if isinstance(project['highlights'], list):
-                        print("   Highlights:")
-                        for highlight in project['highlights']:
-                            print(f"   - {highlight}")
-                    else:
-                        print(f"   Highlights: {project['highlights']}")
-                
-                # Allow user to select projects
-                while True:
-                    try:
-                        response = await aioconsole.ainput("\nEnter project numbers to include (comma-separated) or 'all' for all projects: ")
-                        if response.lower() == 'all':
-                            return phase_result
-                        
-                        selected_indices = [int(idx.strip()) for idx in response.split(',')]
-                        if all(1 <= idx <= len(project_recommendations) for idx in selected_indices):
-                            # Update project recommendations with selected projects only
-                            selected_projects = [project_recommendations[idx-1] for idx in selected_indices]
-                            phase_result["project_recommendations"] = selected_projects
-                            return phase_result
-                        else:
-                            print(f"Please enter numbers between 1 and {len(project_recommendations)}")
-                    except ValueError:
-                        print("Please enter valid numbers separated by commas")
-                    
-            return phase_result
-            
-        except Exception as e:
-            self.logger.error(f"Error in user interaction for {phase_name} phase: {str(e)}")
             raise
 
 async def main():
