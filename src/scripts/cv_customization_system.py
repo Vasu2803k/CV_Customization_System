@@ -353,7 +353,7 @@ class CVCustomizationSystem:
                     self.agents["analyzer"][llm_type],
                     self.agents["resume_scorer"][llm_type]
                 ]
-                max_rounds = 2 
+                max_rounds = 3
             elif chat_name == "optimization":
                 chat_agents = [
                     self.agents["project_recommender"][llm_type],
